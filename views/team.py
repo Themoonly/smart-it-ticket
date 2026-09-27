@@ -1,5 +1,7 @@
 """หน้าทีมดูแล: ช่างแต่ละทีมเห็นเฉพาะตั๋วของทีมตัวเอง อัปเดตสถานะ และแจ้งส่งผิดทีมได้"""
 
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
@@ -10,6 +12,7 @@ from ui import entities_text, load_sample_tickets, priority_badge, status_badge
 
 OVERVIEW = "📈 ภาพรวมทุกทีม"
 REVIEW = "👀 คิว Human Review"
+SLA_HIGH_MINUTES = 30  # ตั๋ว High ที่ยัง "รอรับเรื่อง" เกินเวลานี้จะขึ้นคำเตือนบนการ์ด
 
 auth.require_admin()  # ไม่ใช่ admin จะเห็นฟอร์มล็อกอินและหยุดตรงนี้
 
@@ -24,12 +27,27 @@ with st.sidebar:
         db.clear_all()
         st.toast("ล้างตั๋วทั้งหมดแล้ว")
 
-view = st.selectbox("เลือกมุมมอง", [OVERVIEW, REVIEW] + ALL_TEAMS)
+new_counts = db.get_new_counts()
+
+
+def _view_label(v: str) -> str:
+    if v not in ALL_TEAMS:
+        return v
+    return f"{v} (ใหม่ {new_counts.get(v, 0)})"
+
+
+view = st.selectbox("เลือกมุมมอง", [OVERVIEW, REVIEW] + ALL_TEAMS, format_func=_view_label)
 
 
 def ticket_card(t: dict, key_prefix: str, review_mode: bool = False) -> None:
     title = f"{priority_badge(t['priority'])} · {t['ticket_id']} · {status_badge(t['status'])}"
     with st.expander(title, expanded=t["status"] != "เสร็จสิ้น" and t["priority"] == "High"):
+        if t["priority"] == "High" and t["status"] == db.STATUSES[0]:
+            created = datetime.strptime(t["created_at"], "%Y-%m-%d %H:%M").replace(tzinfo=db.TZ)
+            waited = int((datetime.now(db.TZ) - created).total_seconds() // 60)
+            if waited > SLA_HIGH_MINUTES:
+                st.error(f"⚠️ รอเกิน {SLA_HIGH_MINUTES} นาที (รอมา {waited} นาที)")
+
         st.markdown(f"> {t['raw_text']}")
         c1, c2, c3 = st.columns(3)
         c1.markdown(f"**หมวด:** {t['category']}  \n**หมวดย่อย:** {t['subcategory']}")
@@ -86,6 +104,12 @@ if view == OVERVIEW:
         "ส่งถูกทีม", f"{acc:.0%}" if acc is not None else "-",
         help="คิดจากตั๋วที่ระบบส่งอัตโนมัติ ลบด้วยตั๋วที่ช่างกด \"ส่งผิดทีม\"",
     )
+
+    st.markdown("**ตั๋วใหม่ (รอรับเรื่อง) ต่อทีม**")
+    # ใช้ markdown แทน st.metric เพราะชื่อทีมยาว metric จะตัดเป็น "Hardware Techni…"
+    team_cols = st.columns(len(ALL_TEAMS))
+    for col, team in zip(team_cols, ALL_TEAMS):
+        col.markdown(f"**{team}**  \nใหม่ {new_counts.get(team, 0)}")
 
     left, right = st.columns(2)
     left.markdown("**จำนวนตั๋วแยกตามทีม**")

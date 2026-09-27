@@ -111,6 +111,20 @@ def get_ticket(num: int) -> dict | None:
     return _row_to_dict(row) if row else None
 
 
+def get_tickets(ids: list[int]) -> list[dict]:
+    """ดึงตั๋วหลายใบในคิวรีเดียว เรียงแบบเดียวกับ list_tickets (ยังไม่เสร็จ → priority → ใหม่สุดก่อน)"""
+    if not ids:
+        return []
+    placeholders = ",".join("?" * len(ids))
+    sql = f"""SELECT * FROM tickets WHERE id IN ({placeholders})
+              ORDER BY CASE status WHEN 'เสร็จสิ้น' THEN 1 ELSE 0 END,
+                       CASE priority WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END,
+                       id DESC"""
+    with _connect() as conn:
+        rows = conn.execute(sql, ids).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
 def list_tickets(team: str | None = None, review_only: bool = False) -> list[dict]:
     sql, params = "SELECT * FROM tickets WHERE 1=1", []
     if team:
@@ -179,6 +193,15 @@ def get_stats() -> dict:
         "by_team": by_team,
         "by_status": by_status,
     }
+
+
+def get_new_counts() -> dict[str, int]:
+    """จำนวนตั๋วสถานะ 'รอรับเรื่อง' แยกตามทีม ใช้แสดงตัวเลขตั๋วใหม่ในหน้าทีมดูแล"""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT team, COUNT(*) FROM tickets WHERE status = ? GROUP BY team", (STATUSES[0],)
+        ).fetchall()
+    return dict(rows)
 
 
 def clear_all() -> None:
