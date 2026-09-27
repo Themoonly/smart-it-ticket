@@ -31,10 +31,16 @@ if query:
     st.markdown("#### สถานะ")
     status_progress(ticket["status"])
 
+    st.caption("สถานะตั๋วเปลี่ยนได้โดยผู้ดูแลเท่านั้น")
+
     c1, c2, c3 = st.columns(3)
-    c1.metric("ทีมที่ดูแล", ticket["team"])
-    c2.metric("หมวดหมู่", f"{ticket['category']}")
-    c3.metric("ความเร่งด่วน", priority_badge(ticket["priority"]))
+    # ใช้ markdown แทน st.metric เพราะชื่อทีมยาว metric จะตัดเป็น "Hardware Techni…"
+    c1.caption("ทีมที่ดูแล")
+    c1.markdown(f"**{ticket['team']}**")
+    c2.caption("หมวดหมู่")
+    c2.markdown(f"**{ticket['category']}** · {ticket['subcategory']}")
+    c3.caption("ความเร่งด่วน")
+    c3.markdown(f"**{priority_badge(ticket['priority'])}**")
 
     if ticket["reassigned"]:
         st.info(f"ตั๋วนี้ถูกย้ายจาก {ticket['original_team']} มายัง {ticket['team']} โดยเจ้าหน้าที่")

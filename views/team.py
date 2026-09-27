@@ -3,12 +3,15 @@
 import pandas as pd
 import streamlit as st
 
+import auth
 import db
 from nlp_utils import ALL_TEAMS, TEAM_TO_CATEGORY
 from ui import entities_text, load_sample_tickets, priority_badge, status_badge
 
 OVERVIEW = "📈 ภาพรวมทุกทีม"
 REVIEW = "👀 คิว Human Review"
+
+auth.require_admin()  # ไม่ใช่ admin จะเห็นฟอร์มล็อกอินและหยุดตรงนี้
 
 st.title("🛠️ หน้าทีมดูแล")
 
