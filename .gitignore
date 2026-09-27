@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+data/
+.venv/
+.DS_Store
+_archive/
+*.zip
+streamlit_*.log
+streamlit_pid.txt
